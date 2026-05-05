@@ -274,7 +274,25 @@ class GithubService {
 class PersonalAgentApp extends StatelessWidget {
   const PersonalAgentApp({super.key});
   @override
-  Widget build(BuildContext context) => const MaterialApp(debugShowCheckedModeBanner: false, home: AppBootstrapper());
+  Widget build(BuildContext context) {
+    const primaryBlue = Color(0xFF1FA1FF);
+    const deepBlue = Color(0xFF031B49);
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: primaryBlue, brightness: Brightness.dark),
+        scaffoldBackgroundColor: deepBlue,
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF06245F), foregroundColor: Colors.white),
+        cardTheme: const CardThemeData(color: Color(0xFF0B2D6C)),
+        inputDecorationTheme: const InputDecorationTheme(
+          filled: true,
+          fillColor: Color(0xFF0A2B66),
+          border: OutlineInputBorder(),
+        ),
+      ),
+      home: const AppBootstrapper(),
+    );
+  }
 }
 
 class AppBootstrapper extends StatefulWidget {
@@ -387,31 +405,38 @@ class _AuthPageState extends State<AuthPage> {
           constraints: const BoxConstraints(maxWidth: 450),
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Text('Gestor Operacional Pro', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text(_status),
-              const SizedBox(height: 8),
-              if (_register) ...[
-                TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nome', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(controller: _org, decoration: const InputDecoration(labelText: 'Organização', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<UserRole>(
-                  value: _role,
-                  items: UserRole.values.map((r) => DropdownMenuItem(value: r, child: Text(r.label))).toList(),
-                  onChanged: (v) => setState(() => _role = v ?? UserRole.colaborador),
-                  decoration: const InputDecoration(labelText: 'Perfil', border: OutlineInputBorder()),
+            child: SingleChildScrollView(
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Image.asset('assets/logo.png', height: 120),
                 ),
+                const SizedBox(height: 12),
+                const Text('Gestor Operacional Pro', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-              ],
-              TextField(controller: _email, decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder())),
-              const SizedBox(height: 8),
-              TextField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'Senha', border: OutlineInputBorder())),
-              const SizedBox(height: 8),
-              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _loading ? null : _submit, child: Text(_register ? 'Cadastrar' : 'Entrar'))),
-              TextButton(onPressed: _loading ? null : () => setState(() => _register = !_register), child: Text(_register ? 'Já tenho conta' : 'Criar nova conta')),
-            ]),
+                Text(_status),
+                const SizedBox(height: 8),
+                if (_register) ...[
+                  TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nome', border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(controller: _org, decoration: const InputDecoration(labelText: 'Organização', border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<UserRole>(
+                    value: _role,
+                    items: UserRole.values.map((r) => DropdownMenuItem(value: r, child: Text(r.label))).toList(),
+                    onChanged: (v) => setState(() => _role = v ?? UserRole.colaborador),
+                    decoration: const InputDecoration(labelText: 'Perfil', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                TextField(controller: _email, decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                TextField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'Senha', border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _loading ? null : _submit, child: Text(_register ? 'Cadastrar' : 'Entrar'))),
+                TextButton(onPressed: _loading ? null : () => setState(() => _register = !_register), child: Text(_register ? 'Já tenho conta' : 'Criar nova conta')),
+              ]),
+            ),
           ),
         ),
       ),
