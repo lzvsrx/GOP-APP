@@ -866,6 +866,27 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() {});
   }
 
+  Future<void> _clearAccounting() async {
+    _accountingEntries.clear();
+    await widget.data.saveAccounting(_activeOrg, _accountingEntries);
+    _log('Contabilidade limpa.');
+    setState(() {});
+  }
+
+  Future<void> _clearCompletedReminders() async {
+    _reminders.removeWhere((r) => r.done);
+    await widget.data.saveReminders(_activeOrg, _reminders);
+    _log('Lembretes concluídos removidos.');
+    setState(() {});
+  }
+
+  Future<void> _clearDbFiles() async {
+    _dbFiles.clear();
+    await widget.data.saveDbFiles(_activeOrg, _dbFiles);
+    _log('Arquivos do banco removidos.');
+    setState(() {});
+  }
+
   Future<void> _toggleReq(CompanyRequirement r, bool value) async {
     if (!_canManageRequirements) return;
     r.completed = value;
@@ -1160,6 +1181,15 @@ class _DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.all(16),
         children: [
           _sectionHeader('Menu Contabilidade'),
+          Card(
+            child: ListTile(
+              title: const Text('Ferramentas de contabilidade'),
+              subtitle: Text(
+                'Receitas: R\$ ${_accountingEntries.where((e) => e.type == 'receita').fold<double>(0, (a, b) => a + b.amount).toStringAsFixed(2)} | '
+                'Despesas: R\$ ${_accountingEntries.where((e) => e.type == 'despesa').fold<double>(0, (a, b) => a + b.amount).toStringAsFixed(2)}',
+              ),
+            ),
+          ),
           TextField(controller: _accDesc, decoration: const InputDecoration(labelText: 'Descrição do lançamento', border: OutlineInputBorder())),
           const SizedBox(height: 8),
           TextField(controller: _accAmount, decoration: const InputDecoration(labelText: 'Valor', border: OutlineInputBorder())),
@@ -1171,6 +1201,8 @@ class _DashboardPageState extends State<DashboardPage> {
               Expanded(child: ElevatedButton(onPressed: () => _addAccountingEntry('despesa'), child: const Text('Adicionar despesa'))),
             ],
           ),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _clearAccounting, child: const Text('Limpar lançamentos contábeis')),
           const SizedBox(height: 8),
           ..._accountingEntries.map(
             (e) => ListTile(
@@ -1187,11 +1219,19 @@ class _DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.all(16),
         children: [
           _sectionHeader('Menu Lembretes'),
+          Card(
+            child: ListTile(
+              title: const Text('Ferramentas de lembretes'),
+              subtitle: Text('Pendentes: ${_reminders.where((r) => !r.done).length} | Concluídos: ${_reminders.where((r) => r.done).length}'),
+            ),
+          ),
           TextField(controller: _reminderTitle, decoration: const InputDecoration(labelText: 'Título do lembrete', border: OutlineInputBorder())),
           const SizedBox(height: 8),
           TextField(controller: _reminderDate, decoration: const InputDecoration(labelText: 'Data (ex: 2026-05-20)', border: OutlineInputBorder())),
           const SizedBox(height: 8),
           ElevatedButton(onPressed: _addReminder, child: const Text('Adicionar lembrete')),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _clearCompletedReminders, child: const Text('Remover lembretes concluídos')),
           const SizedBox(height: 8),
           ..._reminders.map(
             (r) => CheckboxListTile(
@@ -1208,6 +1248,12 @@ class _DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.all(16),
         children: [
           _sectionHeader('Menu Administração'),
+          const Card(
+            child: ListTile(
+              title: Text('Ferramentas administrativas'),
+              subtitle: Text('Use este painel para políticas, anotações e decisões de gestão da empresa.'),
+            ),
+          ),
           TextField(
             controller: _adminNotesController,
             maxLines: 6,
@@ -1226,6 +1272,12 @@ class _DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.all(16),
         children: [
           _sectionHeader('Menu Arquivos no Banco'),
+          Card(
+            child: ListTile(
+              title: const Text('Ferramentas de arquivos'),
+              subtitle: Text('Arquivos salvos no banco: ${_dbFiles.length}'),
+            ),
+          ),
           TextField(controller: _dbFileName, decoration: const InputDecoration(labelText: 'Nome do arquivo', border: OutlineInputBorder())),
           const SizedBox(height: 8),
           TextField(
@@ -1235,6 +1287,8 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           const SizedBox(height: 8),
           ElevatedButton(onPressed: _saveDbFile, child: const Text('Salvar arquivo no banco')),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _clearDbFiles, child: const Text('Limpar arquivos do banco')),
           const SizedBox(height: 8),
           ..._dbFiles.map(
             (f) => ListTile(
