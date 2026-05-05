@@ -93,6 +93,55 @@ class CompanyRequirement {
       CompanyRequirement(title: j['title'] as String, description: j['description'] as String, completed: j['completed'] as bool? ?? false);
 }
 
+class AccountingEntry {
+  AccountingEntry({
+    required this.description,
+    required this.amount,
+    required this.type,
+    required this.createdAt,
+  });
+  final String description;
+  final double amount;
+  final String type;
+  final String createdAt;
+
+  Map<String, dynamic> toJson() => {
+        'description': description,
+        'amount': amount,
+        'type': type,
+        'createdAt': createdAt,
+      };
+
+  factory AccountingEntry.fromJson(Map<String, dynamic> j) => AccountingEntry(
+        description: j['description'] as String,
+        amount: (j['amount'] as num).toDouble(),
+        type: j['type'] as String,
+        createdAt: j['createdAt'] as String,
+      );
+}
+
+class ReminderItem {
+  ReminderItem({required this.title, required this.dateLabel, this.done = false});
+  final String title;
+  final String dateLabel;
+  bool done;
+
+  Map<String, dynamic> toJson() => {'title': title, 'dateLabel': dateLabel, 'done': done};
+  factory ReminderItem.fromJson(Map<String, dynamic> j) =>
+      ReminderItem(title: j['title'] as String, dateLabel: j['dateLabel'] as String, done: j['done'] as bool? ?? false);
+}
+
+class DbFileItem {
+  DbFileItem({required this.fileName, required this.content, required this.createdAt});
+  final String fileName;
+  final String content;
+  final String createdAt;
+
+  Map<String, dynamic> toJson() => {'fileName': fileName, 'content': content, 'createdAt': createdAt};
+  factory DbFileItem.fromJson(Map<String, dynamic> j) =>
+      DbFileItem(fileName: j['fileName'] as String, content: j['content'] as String, createdAt: j['createdAt'] as String);
+}
+
 class LocalDataService {
   static const _accounts = 'accounts';
   static const _orgs = 'organizations';
@@ -101,6 +150,10 @@ class LocalDataService {
   String _tasks(String org) => 'tasks_$org';
   String _projects(String org) => 'projects_$org';
   String _reqs(String org) => 'reqs_$org';
+  String _accounting(String org) => 'accounting_$org';
+  String _reminders(String org) => 'reminders_$org';
+  String _adminNotes(String org) => 'admin_notes_$org';
+  String _dbFiles(String org) => 'db_files_$org';
 
   Future<List<Organization>> loadOrganizations() async {
     final p = await SharedPreferences.getInstance();
@@ -210,6 +263,55 @@ class LocalDataService {
     if (raw == null) return [CompanyRequirement(title: 'LGPD', description: 'Políticas de privacidade e base legal documentadas.')];
     final decoded = jsonDecode(raw) as List<dynamic>;
     return decoded.map((e) => CompanyRequirement.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> saveAccounting(String org, List<AccountingEntry> entries) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_accounting(org), jsonEncode(entries.map((e) => e.toJson()).toList()));
+  }
+
+  Future<List<AccountingEntry>> loadAccounting(String org) async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString(_accounting(org));
+    if (raw == null) return [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded.map((e) => AccountingEntry.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> saveReminders(String org, List<ReminderItem> reminders) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_reminders(org), jsonEncode(reminders.map((e) => e.toJson()).toList()));
+  }
+
+  Future<List<ReminderItem>> loadReminders(String org) async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString(_reminders(org));
+    if (raw == null) return [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded.map((e) => ReminderItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> saveAdminNotes(String org, String notes) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_adminNotes(org), notes);
+  }
+
+  Future<String> loadAdminNotes(String org) async {
+    final p = await SharedPreferences.getInstance();
+    return p.getString(_adminNotes(org)) ?? '';
+  }
+
+  Future<void> saveDbFiles(String org, List<DbFileItem> files) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_dbFiles(org), jsonEncode(files.map((e) => e.toJson()).toList()));
+  }
+
+  Future<List<DbFileItem>> loadDbFiles(String org) async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString(_dbFiles(org));
+    if (raw == null) return [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded.map((e) => DbFileItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<Map<String, dynamic>> exportAllData() async {
@@ -593,12 +695,23 @@ class _DashboardPageState extends State<DashboardPage> {
   final _prBody = TextEditingController();
   final _prBase = TextEditingController(text: 'main');
   final _prHead = TextEditingController();
+  final _accDesc = TextEditingController();
+  final _accAmount = TextEditingController();
+  final _reminderTitle = TextEditingController();
+  final _reminderDate = TextEditingController();
+  final _adminNotesController = TextEditingController();
+  final _dbFileName = TextEditingController();
+  final _dbFileContent = TextEditingController();
 
   List<Organization> _orgs = [];
   late String _activeOrg;
   List<TaskItem> _tasks = [];
   List<CompanyProject> _projects = [];
   List<CompanyRequirement> _requirements = [];
+  List<AccountingEntry> _accountingEntries = [];
+  List<ReminderItem> _reminders = [];
+  List<DbFileItem> _dbFiles = [];
+  String _adminNotes = '';
   final List<String> _activity = [];
   List<String> _ghIssues = [];
   List<String> _ghPrs = [];
@@ -611,6 +724,7 @@ class _DashboardPageState extends State<DashboardPage> {
   bool get _canManageUsers => _role.canManageUsers;
   bool get _canManageProjects => _role.canManageProjects;
   bool get _canManageRequirements => _role.canManageRequirements;
+  bool get _canManageAdmin => _role == UserRole.admin;
 
   @override
   void initState() {
@@ -632,6 +746,11 @@ class _DashboardPageState extends State<DashboardPage> {
     _tasks = await widget.data.loadTasks(_activeOrg);
     _projects = await widget.data.loadProjects(_activeOrg);
     _requirements = await widget.data.loadRequirements(_activeOrg);
+    _accountingEntries = await widget.data.loadAccounting(_activeOrg);
+    _reminders = await widget.data.loadReminders(_activeOrg);
+    _adminNotes = await widget.data.loadAdminNotes(_activeOrg);
+    _adminNotesController.text = _adminNotes;
+    _dbFiles = await widget.data.loadDbFiles(_activeOrg);
     _log('Empresa ativo: ${_orgLabel(_activeOrg)}');
   }
 
@@ -686,6 +805,64 @@ class _DashboardPageState extends State<DashboardPage> {
     _projectStatus.clear();
     await widget.data.saveProjects(_activeOrg, _projects);
     _log('Projeto criado: $a');
+    setState(() {});
+  }
+
+  Future<void> _addAccountingEntry(String type) async {
+    final desc = _accDesc.text.trim();
+    final amount = double.tryParse(_accAmount.text.replaceAll(',', '.'));
+    if (desc.isEmpty || amount == null) return;
+    _accountingEntries.insert(
+      0,
+      AccountingEntry(
+        description: desc,
+        amount: amount,
+        type: type,
+        createdAt: DateTime.now().toIso8601String(),
+      ),
+    );
+    _accDesc.clear();
+    _accAmount.clear();
+    await widget.data.saveAccounting(_activeOrg, _accountingEntries);
+    _log('Lançamento contábil registrado.');
+    setState(() {});
+  }
+
+  Future<void> _addReminder() async {
+    final title = _reminderTitle.text.trim();
+    final date = _reminderDate.text.trim();
+    if (title.isEmpty || date.isEmpty) return;
+    _reminders.insert(0, ReminderItem(title: title, dateLabel: date));
+    _reminderTitle.clear();
+    _reminderDate.clear();
+    await widget.data.saveReminders(_activeOrg, _reminders);
+    _log('Lembrete criado.');
+    setState(() {});
+  }
+
+  Future<void> _toggleReminder(ReminderItem item, bool value) async {
+    item.done = value;
+    await widget.data.saveReminders(_activeOrg, _reminders);
+    setState(() {});
+  }
+
+  Future<void> _saveAdminNotes() async {
+    if (!_canManageAdmin) return;
+    _adminNotes = _adminNotesController.text;
+    await widget.data.saveAdminNotes(_activeOrg, _adminNotes);
+    _log('Anotações administrativas salvas.');
+    setState(() {});
+  }
+
+  Future<void> _saveDbFile() async {
+    final fileName = _dbFileName.text.trim();
+    final content = _dbFileContent.text.trim();
+    if (fileName.isEmpty || content.isEmpty) return;
+    _dbFiles.insert(0, DbFileItem(fileName: fileName, content: content, createdAt: DateTime.now().toIso8601String()));
+    _dbFileName.clear();
+    _dbFileContent.clear();
+    await widget.data.saveDbFiles(_activeOrg, _dbFiles);
+    _log('Arquivo salvo no banco local.');
     setState(() {});
   }
 
@@ -834,6 +1011,13 @@ class _DashboardPageState extends State<DashboardPage> {
     _prBody.dispose();
     _prBase.dispose();
     _prHead.dispose();
+    _accDesc.dispose();
+    _accAmount.dispose();
+    _reminderTitle.dispose();
+    _reminderDate.dispose();
+    _adminNotesController.dispose();
+    _dbFileName.dispose();
+    _dbFileContent.dispose();
     super.dispose();
   }
 
@@ -842,7 +1026,7 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     final pending = _tasks.where((t) => !t.done).length;
     return DefaultTabController(
-      length: 7,
+      length: 11,
       child: Scaffold(
         appBar: AppBar(
           title: Text('Gestor Operacional Pro - ${widget.currentUser.name} (${_role.label})'),
@@ -861,13 +1045,31 @@ class _DashboardPageState extends State<DashboardPage> {
               Tab(icon: Icon(Icons.today), text: 'Dia a Dia'),
               Tab(icon: Icon(Icons.work), text: 'Projetos'),
               Tab(icon: Icon(Icons.rule), text: 'Requisitos'),
+              Tab(icon: Icon(Icons.attach_money), text: 'Contabilidade'),
+              Tab(icon: Icon(Icons.alarm), text: 'Lembretes'),
+              Tab(icon: Icon(Icons.admin_panel_settings), text: 'Administração'),
+              Tab(icon: Icon(Icons.folder), text: 'Arquivos DB'),
               Tab(icon: Icon(Icons.group), text: 'Perfis'),
               Tab(icon: Icon(Icons.cloud_sync), text: 'GitHub'),
               Tab(icon: Icon(Icons.timeline), text: 'Atividades'),
             ],
           ),
         ),
-        body: TabBarView(children: [_tenantTab(), _dayTab(pending), _projectsTab(), _requirementsTab(), _profilesTab(), _githubTab(), _activityTab()]),
+        body: TabBarView(
+          children: [
+            _tenantTab(),
+            _dayTab(pending),
+            _projectsTab(),
+            _requirementsTab(),
+            _accountingTab(),
+            _remindersTab(),
+            _administrationTab(),
+            _dbFilesTab(),
+            _profilesTab(),
+            _githubTab(),
+            _activityTab(),
+          ],
+        ),
         bottomNavigationBar: const SafeArea(
           child: Padding(
             padding: EdgeInsets.fromLTRB(12, 2, 12, 10),
@@ -951,6 +1153,96 @@ class _DashboardPageState extends State<DashboardPage> {
         children: [
           _sectionHeader('Menu Requisitos'),
           ..._requirements.map((r) => SwitchListTile(title: Text(r.title), subtitle: Text(r.description), value: r.completed, onChanged: (v) => _toggleReq(r, v))),
+        ],
+      );
+
+  Widget _accountingTab() => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _sectionHeader('Menu Contabilidade'),
+          TextField(controller: _accDesc, decoration: const InputDecoration(labelText: 'Descrição do lançamento', border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          TextField(controller: _accAmount, decoration: const InputDecoration(labelText: 'Valor', border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: ElevatedButton(onPressed: () => _addAccountingEntry('receita'), child: const Text('Adicionar receita'))),
+              const SizedBox(width: 8),
+              Expanded(child: ElevatedButton(onPressed: () => _addAccountingEntry('despesa'), child: const Text('Adicionar despesa'))),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ..._accountingEntries.map(
+            (e) => ListTile(
+              leading: Icon(e.type == 'receita' ? Icons.arrow_upward : Icons.arrow_downward),
+              title: Text(e.description),
+              subtitle: Text('${e.type.toUpperCase()} • ${e.createdAt.substring(0, 10)}'),
+              trailing: Text('R\$ ${e.amount.toStringAsFixed(2)}'),
+            ),
+          ),
+        ],
+      );
+
+  Widget _remindersTab() => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _sectionHeader('Menu Lembretes'),
+          TextField(controller: _reminderTitle, decoration: const InputDecoration(labelText: 'Título do lembrete', border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          TextField(controller: _reminderDate, decoration: const InputDecoration(labelText: 'Data (ex: 2026-05-20)', border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _addReminder, child: const Text('Adicionar lembrete')),
+          const SizedBox(height: 8),
+          ..._reminders.map(
+            (r) => CheckboxListTile(
+              title: Text(r.title),
+              subtitle: Text('Quando: ${r.dateLabel}'),
+              value: r.done,
+              onChanged: (v) => _toggleReminder(r, v ?? false),
+            ),
+          ),
+        ],
+      );
+
+  Widget _administrationTab() => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _sectionHeader('Menu Administração'),
+          TextField(
+            controller: _adminNotesController,
+            maxLines: 6,
+            decoration: const InputDecoration(labelText: 'Anotações administrativas', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: _canManageAdmin ? _saveAdminNotes : null,
+            child: const Text('Salvar administração (somente admin)'),
+          ),
+          if (!_canManageAdmin) const Text('Somente Admin pode salvar configurações administrativas.'),
+        ],
+      );
+
+  Widget _dbFilesTab() => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _sectionHeader('Menu Arquivos no Banco'),
+          TextField(controller: _dbFileName, decoration: const InputDecoration(labelText: 'Nome do arquivo', border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _dbFileContent,
+            maxLines: 5,
+            decoration: const InputDecoration(labelText: 'Conteúdo do arquivo', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _saveDbFile, child: const Text('Salvar arquivo no banco')),
+          const SizedBox(height: 8),
+          ..._dbFiles.map(
+            (f) => ListTile(
+              leading: const Icon(Icons.description),
+              title: Text(f.fileName),
+              subtitle: Text('Criado em: ${f.createdAt.substring(0, 10)}'),
+            ),
+          ),
         ],
       );
 
