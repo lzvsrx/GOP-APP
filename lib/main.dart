@@ -211,6 +211,36 @@ class LocalDataService {
     final decoded = jsonDecode(raw) as List<dynamic>;
     return decoded.map((e) => CompanyRequirement.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  Future<Map<String, dynamic>> exportAllData() async {
+    final p = await SharedPreferences.getInstance();
+    final output = <String, dynamic>{};
+    for (final key in p.getKeys()) {
+      final value = p.get(key);
+      output[key] = value;
+    }
+    return output;
+  }
+
+  Future<void> importAllData(Map<String, dynamic> data) async {
+    final p = await SharedPreferences.getInstance();
+    for (final entry in data.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      if (value is String) {
+        await p.setString(key, value);
+      } else if (value is bool) {
+        await p.setBool(key, value);
+      } else if (value is int) {
+        await p.setInt(key, value);
+      } else if (value is double) {
+        await p.setDouble(key, value);
+      } else if (value is List) {
+        final stringList = value.map((e) => e.toString()).toList();
+        await p.setStringList(key, stringList);
+      }
+    }
+  }
 }
 
 class GithubSnapshot {
@@ -268,6 +298,52 @@ class GithubService {
     );
     if (res.statusCode != 201) throw Exception('Falha ao criar PR (${res.statusCode}). Verifique branches.');
     return (jsonDecode(res.body) as Map<String, dynamic>)['html_url'] as String;
+  }
+
+  Future<void> uploadJsonFile({
+    required String owner,
+    required String repo,
+    required String token,
+    required String path,
+    required Map<String, dynamic> payload,
+    required String message,
+  }) async {
+    String? sha;
+    final readRes = await http.get(Uri.parse('https://api.github.com/repos/$owner/$repo/contents/$path'), headers: _headers(token));
+    if (readRes.statusCode == 200) {
+      final decoded = jsonDecode(readRes.body) as Map<String, dynamic>;
+      sha = decoded['sha'] as String?;
+    }
+
+    final content = base64Encode(utf8.encode(jsonEncode(payload)));
+    final body = <String, dynamic>{'message': message, 'content': content};
+    if (sha != null) body['sha'] = sha;
+
+    final writeRes = await http.put(
+      Uri.parse('https://api.github.com/repos/$owner/$repo/contents/$path'),
+      headers: _headers(token),
+      body: jsonEncode(body),
+    );
+
+    if (writeRes.statusCode != 200 && writeRes.statusCode != 201) {
+      throw Exception('Falha no backup para GitHub (${writeRes.statusCode}).');
+    }
+  }
+
+  Future<Map<String, dynamic>> downloadJsonFile({
+    required String owner,
+    required String repo,
+    required String token,
+    required String path,
+  }) async {
+    final res = await http.get(Uri.parse('https://api.github.com/repos/$owner/$repo/contents/$path'), headers: _headers(token));
+    if (res.statusCode != 200) {
+      throw Exception('Falha ao baixar backup (${res.statusCode}).');
+    }
+    final decoded = jsonDecode(res.body) as Map<String, dynamic>;
+    final content = (decoded['content'] as String).replaceAll('\n', '');
+    final jsonText = utf8.decode(base64Decode(content));
+    return jsonDecode(jsonText) as Map<String, dynamic>;
   }
 }
 
@@ -692,6 +768,55 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  Future<void> _backupDataToGithub() async {
+    final owner = _ghOwner.text.trim();
+    final repo = _ghRepo.text.trim();
+    final token = _ghToken.text.trim();
+    if ([owner, repo, token].any((e) => e.isEmpty)) {
+      setState(() => _ghStatus = 'Preencha os dados do GitHub antes do backup.');
+      return;
+    }
+    try {
+      final snapshot = await widget.data.exportAllData();
+      await _github.uploadJsonFile(
+        owner: owner,
+        repo: repo,
+        token: token,
+        path: 'backup/gop_app_data.json',
+        payload: snapshot,
+        message: 'backup: dados do app',
+      );
+      setState(() => _ghStatus = 'Backup de dados enviado para GitHub com sucesso.');
+      _log('Backup completo enviado para GitHub.');
+    } catch (e) {
+      setState(() => _ghStatus = 'Erro no backup: $e');
+    }
+  }
+
+  Future<void> _restoreDataFromGithub() async {
+    final owner = _ghOwner.text.trim();
+    final repo = _ghRepo.text.trim();
+    final token = _ghToken.text.trim();
+    if ([owner, repo, token].any((e) => e.isEmpty)) {
+      setState(() => _ghStatus = 'Preencha os dados do GitHub antes da restauração.');
+      return;
+    }
+    try {
+      final snapshot = await _github.downloadJsonFile(
+        owner: owner,
+        repo: repo,
+        token: token,
+        path: 'backup/gop_app_data.json',
+      );
+      await widget.data.importAllData(snapshot);
+      await _loadTenant();
+      setState(() => _ghStatus = 'Restauração de dados concluída com sucesso.');
+      _log('Dados restaurados do GitHub.');
+    } catch (e) {
+      setState(() => _ghStatus = 'Erro na restauração: $e');
+    }
+  }
+
   @override
   void dispose() {
     _task.dispose();
@@ -857,6 +982,10 @@ class _DashboardPageState extends State<DashboardPage> {
           TextField(controller: _ghToken, obscureText: true, decoration: const InputDecoration(labelText: 'Token de acesso', border: OutlineInputBorder())),
           const SizedBox(height: 8),
           ElevatedButton(onPressed: _ghBusy ? null : _syncGithub, child: const Text('Sincronizar')),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _ghBusy ? null : _backupDataToGithub, child: const Text('Backup de dados no GitHub')),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _ghBusy ? null : _restoreDataFromGithub, child: const Text('Restaurar dados do GitHub')),
           Text(_ghStatus),
           const Divider(),
           TextField(controller: _issueTitle, decoration: const InputDecoration(labelText: 'Título da issue', border: OutlineInputBorder())),
