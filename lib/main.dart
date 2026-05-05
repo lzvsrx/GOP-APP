@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -275,19 +275,63 @@ class PersonalAgentApp extends StatelessWidget {
   const PersonalAgentApp({super.key});
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF1FA1FF);
-    const deepBlue = Color(0xFF031B49);
+    const primaryBlue = Color(0xFF1E88FF);
+    const accentBlue = Color(0xFF37B6FF);
+    const deepNavy = Color(0xFF081A3A);
+    const cardNavy = Color(0xFF102B5C);
+    const textWhite = Color(0xFFF4F8FF);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: primaryBlue, brightness: Brightness.dark),
-        scaffoldBackgroundColor: deepBlue,
-        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF06245F), foregroundColor: Colors.white),
-        cardTheme: const CardThemeData(color: Color(0xFF0B2D6C)),
+        scaffoldBackgroundColor: deepNavy,
+        useMaterial3: true,
+        textTheme: const TextTheme(
+          titleLarge: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.2, color: textWhite),
+          titleMedium: TextStyle(fontWeight: FontWeight.w600, color: textWhite),
+          bodyMedium: TextStyle(color: textWhite),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0A2452),
+          foregroundColor: textWhite,
+          elevation: 0,
+          centerTitle: false,
+          titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textWhite),
+        ),
+        cardTheme: CardThemeData(
+          color: cardNavy,
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          margin: const EdgeInsets.symmetric(vertical: 6),
+        ),
         inputDecorationTheme: const InputDecorationTheme(
           filled: true,
-          fillColor: Color(0xFF0A2B66),
+          fillColor: Color(0xFF123468),
           border: OutlineInputBorder(),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Color(0xFF2C4F89)),
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: accentBlue, width: 1.6),
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryBlue,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(48),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        chipTheme: const ChipThemeData(
+          backgroundColor: Color(0xFF173F7A),
+          selectedColor: primaryBlue,
+          labelStyle: TextStyle(color: textWhite, fontWeight: FontWeight.w600),
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         ),
       ),
       home: const AppBootstrapper(),
@@ -435,6 +479,8 @@ class _AuthPageState extends State<AuthPage> {
                 const SizedBox(height: 8),
                 SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _loading ? null : _submit, child: Text(_register ? 'Cadastrar' : 'Entrar'))),
                 TextButton(onPressed: _loading ? null : () => setState(() => _register = !_register), child: Text(_register ? 'Já tenho conta' : 'Criar nova conta')),
+                const SizedBox(height: 14),
+                const Text('feito por lzworldstech', style: TextStyle(fontSize: 12, color: Color(0xFF9EC7FF))),
               ]),
             ),
           ),
@@ -499,18 +545,18 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> _boot() async {
     _orgs = await widget.data.loadOrganizations();
-    await _loadTenant();
+    await _loadEmpresa();
     _ghOwner.text = await _secure.read(key: 'gh_owner') ?? '';
     _ghRepo.text = await _secure.read(key: 'gh_repo') ?? '';
     _ghToken.text = await _secure.read(key: 'gh_token') ?? '';
     setState(() => _loading = false);
   }
 
-  Future<void> _loadTenant() async {
+  Future<void> _loadEmpresa() async {
     _tasks = await widget.data.loadTasks(_activeOrg);
     _projects = await widget.data.loadProjects(_activeOrg);
     _requirements = await widget.data.loadRequirements(_activeOrg);
-    _log('Tenant ativo: ${_orgLabel(_activeOrg)}');
+    _log('Empresa ativo: ${_orgLabel(_activeOrg)}');
   }
 
   String _orgLabel(String id) => _orgs.firstWhere((o) => o.id == id, orElse: () => Organization(id: id, name: id)).name;
@@ -522,10 +568,10 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
-  Future<void> _switchTenant(String id) async {
+  Future<void> _switchEmpresa(String id) async {
     setState(() => _loading = true);
     _activeOrg = id;
-    await _loadTenant();
+    await _loadEmpresa();
     setState(() => _loading = false);
   }
 
@@ -675,11 +721,18 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Scaffold(
         appBar: AppBar(
           title: Text('Gestor Operacional Pro - ${widget.currentUser.name} (${_role.label})'),
+          leading: Padding(
+            padding: const EdgeInsets.all(8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset('assets/logo.png', fit: BoxFit.cover),
+            ),
+          ),
           actions: [IconButton(onPressed: widget.onLogout, icon: const Icon(Icons.logout))],
           bottom: const TabBar(
             isScrollable: true,
             tabs: [
-              Tab(icon: Icon(Icons.apartment), text: 'Tenant'),
+              Tab(icon: Icon(Icons.apartment), text: 'Empresa'),
               Tab(icon: Icon(Icons.today), text: 'Dia a Dia'),
               Tab(icon: Icon(Icons.work), text: 'Projetos'),
               Tab(icon: Icon(Icons.rule), text: 'Requisitos'),
@@ -690,6 +743,12 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         body: TabBarView(children: [_tenantTab(), _dayTab(pending), _projectsTab(), _requirementsTab(), _profilesTab(), _githubTab(), _activityTab()]),
+        bottomNavigationBar: const SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(12, 2, 12, 10),
+            child: Text('feito por lzworldstech', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF9EC7FF), fontSize: 12)),
+          ),
+        ),
       ),
     );
   }
@@ -697,12 +756,13 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _tenantTab() => ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _sectionHeader('Menu Empresa e Organizações'),
           DropdownButtonFormField<String>(
             value: _activeOrg,
-            decoration: const InputDecoration(labelText: 'Organização ativa', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'Empresa ativa', border: OutlineInputBorder()),
             items: _orgs.map((o) => DropdownMenuItem(value: o.id, child: Text(o.name))).toList(),
             onChanged: (v) {
-              if (v != null) _switchTenant(v);
+              if (v != null) _switchEmpresa(v);
             },
           ),
           const SizedBox(height: 8),
@@ -715,6 +775,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _dayTab(int pending) => Padding(
         padding: const EdgeInsets.all(16),
         child: Column(children: [
+          _sectionHeader('Menu Dia a Dia'),
           ListTile(title: const Text('Resumo de tarefas'), subtitle: Text('Pendentes: $pending/${_tasks.length}')),
           Row(children: [
             Expanded(child: TextField(controller: _task, decoration: const InputDecoration(labelText: 'Nova tarefa', border: OutlineInputBorder()))),
@@ -745,6 +806,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _projectsTab() => ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _sectionHeader('Menu Projetos'),
           TextField(controller: _projectName, decoration: const InputDecoration(labelText: 'Projeto', border: OutlineInputBorder())),
           const SizedBox(height: 8),
           TextField(controller: _projectClient, decoration: const InputDecoration(labelText: 'Cliente', border: OutlineInputBorder())),
@@ -761,9 +823,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _requirementsTab() => ListView(
         padding: const EdgeInsets.all(16),
-        children: _requirements
-            .map((r) => SwitchListTile(title: Text(r.title), subtitle: Text(r.description), value: r.completed, onChanged: (v) => _toggleReq(r, v)))
-            .toList(),
+        children: [
+          _sectionHeader('Menu Requisitos'),
+          ..._requirements.map((r) => SwitchListTile(title: Text(r.title), subtitle: Text(r.description), value: r.completed, onChanged: (v) => _toggleReq(r, v))),
+        ],
       );
 
   Widget _profilesTab() => FutureBuilder<List<UserAccount>>(
@@ -773,6 +836,7 @@ class _DashboardPageState extends State<DashboardPage> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              _sectionHeader('Menu Perfis e Permissões'),
               Text('Seu perfil: ${_role.label}'),
               Text('Permissões: usuários=${_canManageUsers ? 'sim' : 'não'}, projetos=${_canManageProjects ? 'sim' : 'não'}, requisitos=${_canManageRequirements ? 'sim' : 'não'}'),
               const SizedBox(height: 8),
@@ -785,28 +849,29 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _githubTab() => ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextField(controller: _ghOwner, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
+          _sectionHeader('Menu de Integração GitHub'),
+          TextField(controller: _ghOwner, decoration: const InputDecoration(labelText: 'Proprietário', border: OutlineInputBorder())),
           const SizedBox(height: 8),
           TextField(controller: _ghRepo, decoration: const InputDecoration(labelText: 'Repositório', border: OutlineInputBorder())),
           const SizedBox(height: 8),
-          TextField(controller: _ghToken, obscureText: true, decoration: const InputDecoration(labelText: 'Token', border: OutlineInputBorder())),
+          TextField(controller: _ghToken, obscureText: true, decoration: const InputDecoration(labelText: 'Token de acesso', border: OutlineInputBorder())),
           const SizedBox(height: 8),
           ElevatedButton(onPressed: _ghBusy ? null : _syncGithub, child: const Text('Sincronizar')),
           Text(_ghStatus),
           const Divider(),
-          TextField(controller: _issueTitle, decoration: const InputDecoration(labelText: 'Título issue', border: OutlineInputBorder())),
+          TextField(controller: _issueTitle, decoration: const InputDecoration(labelText: 'Título da issue', border: OutlineInputBorder())),
           const SizedBox(height: 8),
-          TextField(controller: _issueBody, maxLines: 3, decoration: const InputDecoration(labelText: 'Descrição issue', border: OutlineInputBorder())),
+          TextField(controller: _issueBody, maxLines: 3, decoration: const InputDecoration(labelText: 'Descrição da issue', border: OutlineInputBorder())),
           const SizedBox(height: 8),
-          ElevatedButton(onPressed: _ghBusy ? null : _createIssue, child: const Text('Criar Issue')),
+          ElevatedButton(onPressed: _ghBusy ? null : _createIssue, child: const Text('Criar issue')),
           const Divider(),
-          TextField(controller: _prTitle, decoration: const InputDecoration(labelText: 'Título PR', border: OutlineInputBorder())),
+          TextField(controller: _prTitle, decoration: const InputDecoration(labelText: 'Título do PR', border: OutlineInputBorder())),
           const SizedBox(height: 8),
-          TextField(controller: _prBody, maxLines: 3, decoration: const InputDecoration(labelText: 'Descrição PR', border: OutlineInputBorder())),
+          TextField(controller: _prBody, maxLines: 3, decoration: const InputDecoration(labelText: 'Descrição do PR', border: OutlineInputBorder())),
           const SizedBox(height: 8),
-          TextField(controller: _prBase, decoration: const InputDecoration(labelText: 'Base', border: OutlineInputBorder())),
+          TextField(controller: _prBase, decoration: const InputDecoration(labelText: 'Branch base', border: OutlineInputBorder())),
           const SizedBox(height: 8),
-          TextField(controller: _prHead, decoration: const InputDecoration(labelText: 'Head', border: OutlineInputBorder())),
+          TextField(controller: _prHead, decoration: const InputDecoration(labelText: 'Branch origem', border: OutlineInputBorder())),
           const SizedBox(height: 8),
           ElevatedButton(onPressed: _ghBusy ? null : _createPr, child: const Text('Criar PR (admin/gestor)')),
           const Divider(),
@@ -814,5 +879,30 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       );
 
-  Widget _activityTab() => ListView.builder(itemCount: _activity.length, itemBuilder: (context, i) => ListTile(title: Text(_activity[i])));
+  Widget _sectionHeader(String title) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset('assets/logo.png', width: 42, height: 42, fit: BoxFit.cover),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+            ],
+          ),
+        ),
+      );
+
+  Widget _activityTab() => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _sectionHeader('Menu Atividades'),
+          ..._activity.map((e) => ListTile(title: Text(e))),
+        ],
+      );
 }
+
+
+
