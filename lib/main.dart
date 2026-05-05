@@ -809,7 +809,7 @@ class _DashboardPageState extends State<DashboardPage> {
         path: 'backup/gop_app_data.json',
       );
       await widget.data.importAllData(snapshot);
-      await _loadTenant();
+      await _loadEmpresa();
       setState(() => _ghStatus = 'Restauração de dados concluída com sucesso.');
       _log('Dados restaurados do GitHub.');
     } catch (e) {
@@ -1032,6 +1032,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       );
 }
+
 
 
 
